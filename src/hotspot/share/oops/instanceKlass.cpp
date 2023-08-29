@@ -360,25 +360,10 @@ bool set_fields_bitset(std::bitset<7>* fields, int offset, int count) {
   return false;
 }
 
-InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& parser, TRAPS) {
-  const int size = InstanceKlass::size(parser.vtable_size(),
-                                       parser.itable_size(),
-                                       nonstatic_oop_map_size(parser.total_oop_map_count()),
-                                       parser.is_interface(),
-                                       parser.is_anonymous(),
-                                       should_store_fingerprint(parser.is_anonymous()));
-
-  const Symbol* const class_name = parser.class_name();
-  assert(class_name != NULL, "invariant");
-  ClassLoaderData* loader_data = parser.loader_data();
-  assert(loader_data != NULL, "invariant");
-
-  InstanceKlass* ik;
-
+enum Klass::ae_patterns InstanceKlass::ae_get_pattern(const ClassFileParser& parser, const Symbol* class_name) {
   if (ae_verbose) {
     printf("Klass %s\n", class_name->as_C_string());
   }
-
 
   const InstanceKlass* sk;
   ClassFileParser::FieldLayoutInfo* fli = parser._field_info;
@@ -386,7 +371,7 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
   int* nonstatic_oop_offsets = fli->nonstatic_oop_offsets;
   unsigned int* nonstatic_oop_counts = fli->nonstatic_oop_counts;
   unsigned int nonstatic_oop_map_count = fli->nonstatic_oop_map_count;
-  
+
   std::bitset<7> fields{0x0};
   bool too_many_fields = false;
   if (sk) {
@@ -420,7 +405,6 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
       nonstatic_oop_offsets++;
     }
   }
-
   enum ae_patterns pattern = ae_fallback;
   if (ae_verbose) {
     printf("Fields: %llx, too many fields: %d\n", fields.to_ullong(), too_many_fields);
@@ -449,23 +433,42 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
         break;
     }
   }
+  return pattern;
+}
+
+InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& parser, TRAPS) {
+  const int size = InstanceKlass::size(parser.vtable_size(),
+                                       parser.itable_size(),
+                                       nonstatic_oop_map_size(parser.total_oop_map_count()),
+                                       parser.is_interface(),
+                                       parser.is_anonymous(),
+                                       should_store_fingerprint(parser.is_anonymous()));
+
+  const Symbol* const class_name = parser.class_name();
+  assert(class_name != NULL, "invariant");
+  ClassLoaderData* loader_data = parser.loader_data();
+  assert(loader_data != NULL, "invariant");
+
+  InstanceKlass* ik;
 
   // Allocation
   if (REF_NONE == parser.reference_type()) {
     if (class_name == vmSymbols::java_lang_Class()) {
       // mirror
-      ik = new (loader_data, size, pattern, THREAD) InstanceMirrorKlass(parser);
+      ik = new (loader_data, size, ae_fallback, THREAD) InstanceMirrorKlass(parser);
     }
     else if (is_class_loader(class_name, parser)) {
       // class loader
+      enum ae_patterns pattern = ae_get_pattern(parser, class_name);
       ik = new (loader_data, size, pattern, THREAD) InstanceClassLoaderKlass(parser);
     } else {
       // normal
+      enum ae_patterns pattern = ae_get_pattern(parser, class_name);
       ik = new (loader_data, size, pattern, THREAD) InstanceKlass(parser, InstanceKlass::_misc_kind_other);
     }
   } else {
     // reference
-    ik = new (loader_data, size, pattern, THREAD) InstanceRefKlass(parser);
+    ik = new (loader_data, size, ae_fallback, THREAD) InstanceRefKlass(parser);
   }
 
   // Check for pending exception before adding to the loader data and incrementing

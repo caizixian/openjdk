@@ -138,6 +138,7 @@ class InstanceKlass: public Klass {
   };
 
  private:
+  static enum Klass::ae_patterns ae_get_pattern(const ClassFileParser& parser, const Symbol* class_name);
   static InstanceKlass* allocate_instance_klass(const ClassFileParser& parser, TRAPS);
 
  protected:
