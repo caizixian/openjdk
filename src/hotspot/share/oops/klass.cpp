@@ -185,8 +185,9 @@ Method* Klass::uncached_lookup_method(const Symbol* name, const Symbol* signatur
 }
 
 void* Klass::operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, int align_code, TRAPS) throw() {
-  size_t word_size_padded = word_size + ae_padding(align_code);
+  size_t word_size_padded = word_size + ae_padding_word(align_code);
   void* region = Metaspace::allocate(loader_data, word_size_padded, MetaspaceObj::ClassType, THREAD);
+  // printf("xx,%d,%d\n", word_size, word_size_padded);
   return reinterpret_cast<void*>(ae_adjust_region(align_code, reinterpret_cast<uintptr_t>(region)));
 }
 
