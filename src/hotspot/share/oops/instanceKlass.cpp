@@ -345,15 +345,18 @@ bool InstanceKlass::has_nestmate_access_to(InstanceKlass* k, TRAPS) {
 }
 
 bool set_fields_bitset(std::bitset<7>* fields, int offset, int count) {
-  int first_field = offset >> LogBitsPerWord - 1;
+  // Each oop has a mark word and a Klass pointer
+  int first_field = (offset >> LogBytesPerWord) - 2;
   int last_field = first_field + count - 1;
+  // printf("First field %d, last field %d\n", first_field, last_field);
   // We can only set bit 0~6 inclusive
   if (first_field > 6 || last_field > 6) {
     // too many fields
     return true;
   }
   // have `count` consecutive bits, and shift them
-  *fields |= (1<<count - 1) << first_field;
+  // fuck +- comes before shift
+  *fields |= ((1<<count) - 1) << first_field;
   return false;
 }
 
@@ -393,7 +396,9 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
     OopMapBlock* sk_map = sk->start_of_nonstatic_oop_maps();
     OopMapBlock* sk_end_map = sk_map + sk->nonstatic_oop_map_count();
     for (OopMapBlock* map = sk_map; map < sk_end_map; ++map) {
-      printf("Klass.super omb offset %d, count %d\n", map->offset(), map->count());
+      if (ae_verbose) {
+        printf("Klass.super omb offset %d, count %d\n", map->offset(), map->count());
+      }
       if (set_fields_bitset(&fields, map->offset(), map->count())) {
         too_many_fields = true;
         break;
@@ -403,7 +408,9 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
   if (!too_many_fields) {
     // super class doesn't have too many fields, we can look at the current class
     for (unsigned int i = 0; i< nonstatic_oop_map_count; i++) {
-      printf("Klass omb offset %d, count %d\n", *nonstatic_oop_offsets, *nonstatic_oop_counts);
+      if (ae_verbose) {
+        printf("Klass omb offset %d, count %d\n", *nonstatic_oop_offsets, *nonstatic_oop_counts);
+      }
       if (set_fields_bitset(&fields, *nonstatic_oop_offsets, *nonstatic_oop_counts)) {
         // we now have too many fields, no need to look further
         too_many_fields = true;
@@ -415,7 +422,9 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
   }
 
   enum ae_patterns pattern = ae_fallback;
-  printf("Fields: %llx, too many fields: %d\n", fields.to_ullong(), too_many_fields);
+  if (ae_verbose) {
+    printf("Fields: %llx, too many fields: %d\n", fields.to_ullong(), too_many_fields);
+  }
   if (!too_many_fields) {
     switch(fields.to_ullong()) {
       case 0b0000000:

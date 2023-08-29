@@ -753,7 +753,7 @@ protected:
     }
   }
  public:
-  const static bool ae_verbose = true;
+  const static bool ae_verbose = false;
   enum ae_patterns {
     ae_fallback = (1 << ae_field_width) - 1, // 7
     ae_refarray = ae_fallback - 1, // 6
