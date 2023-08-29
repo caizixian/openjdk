@@ -84,7 +84,7 @@ TypeArrayKlass* TypeArrayKlass::allocate(ClassLoaderData* loader_data, BasicType
 
   int size = ArrayKlass::static_size(TypeArrayKlass::header_size());
 
-  return new (loader_data, size, THREAD) TypeArrayKlass(type, name);
+  return new (loader_data, size, ae_fallback, THREAD) TypeArrayKlass(type, name);
 }
 
 TypeArrayKlass::TypeArrayKlass(BasicType type, Symbol* name) : ArrayKlass(name, ID) {

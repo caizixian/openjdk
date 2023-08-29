@@ -361,18 +361,18 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
   if (REF_NONE == parser.reference_type()) {
     if (class_name == vmSymbols::java_lang_Class()) {
       // mirror
-      ik = new (loader_data, size, THREAD) InstanceMirrorKlass(parser);
+      ik = new (loader_data, size, ae_fallback, THREAD) InstanceMirrorKlass(parser);
     }
     else if (is_class_loader(class_name, parser)) {
       // class loader
-      ik = new (loader_data, size, THREAD) InstanceClassLoaderKlass(parser);
+      ik = new (loader_data, size, ae_fallback, THREAD) InstanceClassLoaderKlass(parser);
     } else {
       // normal
-      ik = new (loader_data, size, THREAD) InstanceKlass(parser, InstanceKlass::_misc_kind_other);
+      ik = new (loader_data, size, ae_fallback, THREAD) InstanceKlass(parser, InstanceKlass::_misc_kind_other);
     }
   } else {
     // reference
-    ik = new (loader_data, size, THREAD) InstanceRefKlass(parser);
+    ik = new (loader_data, size, ae_fallback, THREAD) InstanceRefKlass(parser);
   }
 
   // Check for pending exception before adding to the loader data and incrementing

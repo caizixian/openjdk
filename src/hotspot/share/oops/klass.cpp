@@ -184,8 +184,10 @@ Method* Klass::uncached_lookup_method(const Symbol* name, const Symbol* signatur
   return NULL;
 }
 
-void* Klass::operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw() {
-  return Metaspace::allocate(loader_data, word_size, MetaspaceObj::ClassType, THREAD);
+void* Klass::operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, int align_code, TRAPS) throw() {
+  size_t word_size_padded = word_size + ae_padding(align_code);
+  void* region = Metaspace::allocate(loader_data, word_size_padded, MetaspaceObj::ClassType, THREAD);
+  return reinterpret_cast<void*>(ae_adjust_region(align_code, reinterpret_cast<uintptr_t>(region)));
 }
 
 // "Normal" instantiation is preceeded by a MetaspaceObj allocation

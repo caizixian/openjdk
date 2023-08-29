@@ -190,7 +190,7 @@ protected:
   Klass(KlassID id);
   Klass() : _id(KlassID(-1)) { assert(DumpSharedSpaces || UseSharedSpaces, "only for cds"); }
 
-  void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw();
+  void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, int align_code, TRAPS) throw();
 
  public:
   int id() { return _id; }
@@ -727,6 +727,56 @@ protected:
 
   static Klass* decode_klass_not_null(narrowKlass v);
   static Klass* decode_klass(narrowKlass v);
+
+  // Alignment encoding
+ private:
+  // How many bits of information do we want to encode
+  const static int ae_field_width = 3;
+  const static int ae_max_align_words = 1 << ae_field_width;
+  const static int ae_field_shift = LogBytesPerWord;
+  const static int ae_alignment_increment = 1 << ae_field_shift;
+  const static uintptr_t ae_klass_mask = (ae_max_align_words - 1) << ae_field_shift;
+  const static int ae_align_code_none = -1;
+  const static bool ae_verbose = true;
+
+  static int ae_padding_word(int align_code) {
+    if (align_code == ae_align_code_none) {
+      return 0;
+    } else {
+      return ae_max_align_words;
+    }
+  }
+  static int ae_padding(int align_code) {
+    if (align_code == ae_align_code_none) {
+      return 0;
+    } else {
+      return ae_max_align_words << ae_field_shift;
+    }
+  }
+ public:
+  enum ae_patterns {
+    ae_fallback = (1 << ae_field_width) - 1
+  };
+  static uintptr_t ae_adjust_region(int align_code, uintptr_t region) {
+    assert(align_code == ae_align_code_none || (align_code >= 0 && align_code < ae_max_align_words), "Invalid align code");
+    if (align_code == ae_align_code_none) {
+      return region;
+    }
+    uintptr_t limit = region + ae_padding(align_code);
+    while (ae_get_klass_code_for_region(region) != align_code) {
+      region += ae_alignment_increment;
+      if (region > limit) {
+        ShouldNotReachHere();
+      }
+    }
+    if (ae_verbose) {
+      printf("Klass: region = %p, klass code = %d, requested = %d\n", reinterpret_cast<void*>(region), ae_get_klass_code_for_region(region), align_code);
+    }
+    return region;
+  }
+  static int ae_get_klass_code_for_region(uintptr_t region) {
+    return (region & ae_klass_mask) >> ae_field_shift;
+  }
 };
 
 #endif // SHARE_VM_OOPS_KLASS_HPP
