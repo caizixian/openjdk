@@ -83,8 +83,9 @@ TypeArrayKlass* TypeArrayKlass::allocate(ClassLoaderData* loader_data, BasicType
       "array klasses must be same size as InstanceKlass");
 
   int size = ArrayKlass::static_size(TypeArrayKlass::header_size());
-
-  return new (loader_data, size, ae_fallback, THREAD) TypeArrayKlass(type, name);
+  // Z: boolean, C: char, F: float, D: double, B: byte, S: short, I: int, J: long
+  // printf("TypeArrayKlass %s\n", name->as_C_string());
+  return new (loader_data, size, ae_noref, THREAD) TypeArrayKlass(type, name);
 }
 
 TypeArrayKlass::TypeArrayKlass(BasicType type, Symbol* name) : ArrayKlass(name, ID) {

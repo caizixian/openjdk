@@ -51,7 +51,7 @@ ObjArrayKlass* ObjArrayKlass::allocate(ClassLoaderData* loader_data, int n, Klas
 
   int size = ArrayKlass::static_size(ObjArrayKlass::header_size());
 
-  return new (loader_data, size, ae_fallback, THREAD) ObjArrayKlass(n, k, name);
+  return new (loader_data, size, ae_refarray, THREAD) ObjArrayKlass(n, k, name);
 }
 
 Klass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_data,

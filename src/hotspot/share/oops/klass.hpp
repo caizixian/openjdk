@@ -737,7 +737,7 @@ protected:
   const static int ae_alignment_increment = 1 << ae_field_shift;
   const static uintptr_t ae_klass_mask = (ae_max_align_words - 1) << ae_field_shift;
   const static int ae_align_code_none = -1;
-  const static bool ae_verbose = true;
+  const static bool ae_verbose = false;
 
   static int ae_padding_word(int align_code) {
     if (align_code == ae_align_code_none) {
@@ -755,7 +755,14 @@ protected:
   }
  public:
   enum ae_patterns {
-    ae_fallback = (1 << ae_field_width) - 1
+    ae_fallback = (1 << ae_field_width) - 1, // 7
+    ae_refarray = ae_fallback - 1, // 6
+    ae_noref = 0,
+    ae_ref_0 = 1, // 16
+    ae_ref_1_2_3 = 2, // 24, 32, 40
+    ae_ref_4_5_6 = 3, // 48, 56, 64
+    ae_ref_2 = 4, // 32
+    ae_ref_0_1 = 5, // 16, 24
   };
   static uintptr_t ae_adjust_region(int align_code, uintptr_t region) {
     assert(align_code == ae_align_code_none || (align_code >= 0 && align_code < ae_max_align_words), "Invalid align code");
