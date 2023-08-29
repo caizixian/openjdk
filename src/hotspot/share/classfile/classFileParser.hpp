@@ -54,6 +54,7 @@ class ClassFileParser {
  class ClassAnnotationCollector;
  class FieldAllocationCount;
  class FieldAnnotationCollector;
+ public:
  class FieldLayoutInfo;
 
  public:
@@ -111,7 +112,9 @@ class ClassFileParser {
 
   ClassAnnotationCollector* _parsed_annotations;
   FieldAllocationCount* _fac;
+ public:
   FieldLayoutInfo* _field_info;
+ private:
   const intArray* _method_ordering;
   GrowableArray<Method*>* _all_mirandas;
 
@@ -549,5 +552,19 @@ class ClassFileParser {
 #endif
 
 };
+
+// Values needed for oopmap and InstanceKlass creation
+class ClassFileParser::FieldLayoutInfo : public ResourceObj {
+ public:
+  int*          nonstatic_oop_offsets;
+  unsigned int* nonstatic_oop_counts;
+  unsigned int  nonstatic_oop_map_count;
+  unsigned int  total_oop_map_count;
+  int           instance_size;
+  int           nonstatic_field_size;
+  int           static_field_size;
+  bool          has_nonstatic_fields;
+};
+
 
 #endif // SHARE_VM_CLASSFILE_CLASSFILEPARSER_HPP

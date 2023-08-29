@@ -3918,19 +3918,6 @@ static void print_field_layout(const Symbol* name,
 }
 #endif
 
-// Values needed for oopmap and InstanceKlass creation
-class ClassFileParser::FieldLayoutInfo : public ResourceObj {
- public:
-  int*          nonstatic_oop_offsets;
-  unsigned int* nonstatic_oop_counts;
-  unsigned int  nonstatic_oop_map_count;
-  unsigned int  total_oop_map_count;
-  int           instance_size;
-  int           nonstatic_field_size;
-  int           static_field_size;
-  bool          has_nonstatic_fields;
-};
-
 // Layout fields and fill in FieldLayoutInfo.  Could use more refactoring!
 void ClassFileParser::layout_fields(ConstantPool* cp,
                                     const FieldAllocationCount* fac,

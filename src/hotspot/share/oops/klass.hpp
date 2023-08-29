@@ -737,7 +737,6 @@ protected:
   const static int ae_alignment_increment = 1 << ae_field_shift;
   const static uintptr_t ae_klass_mask = (ae_max_align_words - 1) << ae_field_shift;
   const static int ae_align_code_none = -1;
-  const static bool ae_verbose = false;
 
   static int ae_padding_word(int align_code) {
     if (align_code == ae_align_code_none) {
@@ -754,6 +753,7 @@ protected:
     }
   }
  public:
+  const static bool ae_verbose = true;
   enum ae_patterns {
     ae_fallback = (1 << ae_field_width) - 1, // 7
     ae_refarray = ae_fallback - 1, // 6

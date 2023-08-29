@@ -81,6 +81,8 @@
 #include "c1/c1_Compiler.hpp"
 #endif
 
+#include <bitset>
+
 #ifdef DTRACE_ENABLED
 
 
@@ -342,6 +344,19 @@ bool InstanceKlass::has_nestmate_access_to(InstanceKlass* k, TRAPS) {
   return access;
 }
 
+bool set_fields_bitset(std::bitset<7>* fields, int offset, int count) {
+  int first_field = offset >> LogBitsPerWord - 1;
+  int last_field = first_field + count - 1;
+  // We can only set bit 0~6 inclusive
+  if (first_field > 6 || last_field > 6) {
+    // too many fields
+    return true;
+  }
+  // have `count` consecutive bits, and shift them
+  *fields |= (1<<count - 1) << first_field;
+  return false;
+}
+
 InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& parser, TRAPS) {
   const int size = InstanceKlass::size(parser.vtable_size(),
                                        parser.itable_size(),
@@ -357,22 +372,91 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
 
   InstanceKlass* ik;
 
+  if (ae_verbose) {
+    printf("Klass %s\n", class_name->as_C_string());
+  }
+
+
+  const InstanceKlass* sk;
+  ClassFileParser::FieldLayoutInfo* fli = parser._field_info;
+  sk = parser.super_klass();
+  int* nonstatic_oop_offsets = fli->nonstatic_oop_offsets;
+  unsigned int* nonstatic_oop_counts = fli->nonstatic_oop_counts;
+  unsigned int nonstatic_oop_map_count = fli->nonstatic_oop_map_count;
+  
+  std::bitset<7> fields{0x0};
+  bool too_many_fields = false;
+  if (sk) {
+    if (ae_verbose) {
+      printf("Klass.super %s\n", sk->name()->as_C_string());
+    }
+    OopMapBlock* sk_map = sk->start_of_nonstatic_oop_maps();
+    OopMapBlock* sk_end_map = sk_map + sk->nonstatic_oop_map_count();
+    for (OopMapBlock* map = sk_map; map < sk_end_map; ++map) {
+      printf("Klass.super omb offset %d, count %d\n", map->offset(), map->count());
+      if (set_fields_bitset(&fields, map->offset(), map->count())) {
+        too_many_fields = true;
+        break;
+      }
+    }
+  }
+  if (!too_many_fields) {
+    // super class doesn't have too many fields, we can look at the current class
+    for (unsigned int i = 0; i< nonstatic_oop_map_count; i++) {
+      printf("Klass omb offset %d, count %d\n", *nonstatic_oop_offsets, *nonstatic_oop_counts);
+      if (set_fields_bitset(&fields, *nonstatic_oop_offsets, *nonstatic_oop_counts)) {
+        // we now have too many fields, no need to look further
+        too_many_fields = true;
+        break;
+      }
+      nonstatic_oop_counts++;
+      nonstatic_oop_offsets++;
+    }
+  }
+
+  enum ae_patterns pattern = ae_fallback;
+  printf("Fields: %llx, too many fields: %d\n", fields.to_ullong(), too_many_fields);
+  if (!too_many_fields) {
+    switch(fields.to_ullong()) {
+      case 0b0000000:
+        pattern = ae_noref;
+        break;
+      case 0b0000001:
+        pattern = ae_ref_0;
+        break;
+      case 0b0000011:
+        pattern = ae_ref_0_1;
+        break;
+      case 0b0000100:
+        pattern = ae_ref_2;
+        break;
+      case 0b0001110:
+        pattern = ae_ref_1_2_3;
+        break;
+      case 0b1110000:
+        pattern = ae_ref_4_5_6;
+        break;
+      default:
+        break;
+    }
+  }
+
   // Allocation
   if (REF_NONE == parser.reference_type()) {
     if (class_name == vmSymbols::java_lang_Class()) {
       // mirror
-      ik = new (loader_data, size, ae_fallback, THREAD) InstanceMirrorKlass(parser);
+      ik = new (loader_data, size, pattern, THREAD) InstanceMirrorKlass(parser);
     }
     else if (is_class_loader(class_name, parser)) {
       // class loader
-      ik = new (loader_data, size, ae_fallback, THREAD) InstanceClassLoaderKlass(parser);
+      ik = new (loader_data, size, pattern, THREAD) InstanceClassLoaderKlass(parser);
     } else {
       // normal
-      ik = new (loader_data, size, ae_fallback, THREAD) InstanceKlass(parser, InstanceKlass::_misc_kind_other);
+      ik = new (loader_data, size, pattern, THREAD) InstanceKlass(parser, InstanceKlass::_misc_kind_other);
     }
   } else {
     // reference
-    ik = new (loader_data, size, ae_fallback, THREAD) InstanceRefKlass(parser);
+    ik = new (loader_data, size, pattern, THREAD) InstanceRefKlass(parser);
   }
 
   // Check for pending exception before adding to the loader data and incrementing
